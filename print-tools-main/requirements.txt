@@ -1,0 +1,21 @@
+# Web 服务
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# 二维码生成（启动时控制台展示访问地址）
+qrcode==8.0
+pillow==11.1.0
+
+# 图片转 PDF（保真，不重新压缩）
+img2pdf==0.6.0
+
+# 文本转 PDF（.txt 兜底排版）
+reportlab==4.2.5
+
+# PDF 处理：每张多页（N-up）拼版、页数统计
+pypdf==5.1.0
+
+# Windows 专有：Office COM 自动化 + 打印机枚举
+# 注意：仅在 Windows 上可安装/可用，WSL/Linux 下会跳过
+pywin32==308 ; sys_platform == "win32"

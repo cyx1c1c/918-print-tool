@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 · 918实验室云打印 🖨️</title>
+  <style>
+    :root {
+      --bg: #f4f6fb; --card: #fff; --primary: #4f6ef7; --text: #1f2330;
+      --muted: #8089a0; --border: #e6e9f2; --err: #e94e4e;
+      --shadow: 0 4px 18px rgba(40, 50, 90, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      background: var(--bg); color: var(--text); padding: 18px;
+    }
+    .login-card {
+      width: 100%; max-width: 360px; background: var(--card); border-radius: 16px;
+      box-shadow: var(--shadow); padding: 30px 26px;
+    }
+    .brand { text-align: center; margin-bottom: 22px; }
+    .brand .logo { font-size: 30px; }
+    .brand .title { font-size: 19px; font-weight: 700; margin-top: 8px; }
+    .brand .subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .field span { font-size: 13px; color: var(--muted); }
+    .field input {
+      padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px;
+      font-size: 15px; background: #fff; outline: none; transition: border-color .15s;
+    }
+    .field input:focus { border-color: var(--primary); }
+    .btn-login {
+      width: 100%; margin-top: 6px; padding: 12px; border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600; color: #fff; cursor: pointer;
+      background: linear-gradient(135deg, var(--primary), #6b8cff);
+      transition: transform .1s, opacity .2s;
+    }
+    .btn-login:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+    .msg { min-height: 20px; margin-top: 12px; font-size: 13px; color: var(--err); text-align: center; }
+  </style>
+</head>
+<body>
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <div class="brand">
+      <div class="logo">🖨️</div>
+      <div class="title">918实验室云打印</div>
+      <div class="subtitle">请登录后使用</div>
+    </div>
+    <label class="field">
+      <span>用户名</span>
+      <input id="username" name="username" type="text" autocomplete="username" required autofocus />
+    </label>
+    <label class="field">
+      <span>密码</span>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+    </label>
+    <button class="btn-login" id="loginBtn" type="submit">登 录</button>
+    <div class="msg" id="msg"></div>
+  </form>
+
+  <script>
+    "use strict";
+    const form = document.getElementById("loginForm");
+    const btn = document.getElementById("loginBtn");
+    const msg = document.getElementById("msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      btn.disabled = true;
+      btn.textContent = "登录中…";
+      try {
+        const r = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value,
+          }),
+        });
+        if (r.ok) {
+          location.href = "/";
+          return;
+        }
+        const d = await r.json().catch(() => ({}));
+        msg.textContent = d.detail || "登录失败，请重试";
+      } catch (err) {
+        msg.textContent = "网络错误，请重试";
+      }
+      btn.disabled = false;
+      btn.textContent = "登 录";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF 转换 · 918实验室云打印</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .conv-tag {
+      display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px;
+      background: #eef2ff; color: var(--primary); font-weight: 600; margin-left: 8px;
+    }
+    .conv-tag.done { background: #e6f7ec; color: var(--ok); }
+    .conv-tag.err { background: #fde6e6; color: var(--err); }
+    .conv-tag.pending { background: #fff4e0; color: var(--warn); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-row">
+      <span class="logo">🖨️ 918实验室云打印</span>
+      <span class="subtitle">文件转 PDF · 一键下载</span>
+      <button id="logoutBtn" class="btn btn-ghost btn-sm topbar-logout">🚪 登出</button>
+    </div>
+    <nav class="topbar-nav">
+      <a href="/" class="nav-link">🖨️ 打印</a>
+      <a href="/convert.html" class="nav-link active">📄 转换 PDF</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="toolbar" style="flex-direction: row; align-items: center;">
+      <div style="font-size: 14px; color: var(--muted);">
+        📄 上传任意文件，一键转换为 PDF 下载
+      </div>
+      <div class="tb-actions">
+        <button id="convertAllBtn" class="btn btn-primary" disabled>⚡ 全部转换</button>
+        <button id="clearAllBtn" class="btn btn-ghost" disabled>🗑 清空</button>
+      </div>
+    </div>
+
+    <div id="dropzone" class="dropzone">
+      <div class="dz-inner">
+        <div class="dz-icon">📤</div>
+        <p class="dz-title">把文件拖到这里，或<span class="dz-link">点击选择</span>（可多选）</p>
+        <p class="dz-hint">支持 图片 / PDF / Word / Excel / PPT / 文本，混着传也行</p>
+      </div>
+      <input id="fileInput" type="file" hidden multiple
+        accept="image/*,.pdf,.doc,.docx,.rtf,.xls,.xlsx,.csv,.ppt,.pptx,.txt" />
+    </div>
+
+    <ul id="fileList" class="file-list"></ul>
+    <p id="emptyHint" class="dz-hint" style="text-align:center;">还没有文件，快上传一个吧～</p>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+  "use strict";
+
+  const files = new Map();
+  const $ = (id) => document.getElementById(id);
+
+  async function req(url, opts) {
+    const r = await fetch(url, opts);
+    if (r.status === 401) { location.href = "/login"; throw new Error("未登录"); }
+    return r;
+  }
+
+  function toast(msg, type = "") {
+    const el = $("toast");
+    el.textContent = msg;
+    el.className = "toast " + type;
+    setTimeout(() => el.classList.add("hidden"), 3200);
+  }
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+  function fmtSize(b) {
+    if (!b) return "";
+    return b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB";
+  }
+  function iconFor(ext) {
+    ext = (ext || "").toLowerCase();
+    if (["jpg","jpeg","png","bmp","gif","webp","tif","tiff"].includes(ext)) return "🖼️";
+    if (ext === "pdf") return "📕";
+    if (["doc","docx","rtf"].includes(ext)) return "📘";
+    if (["xls","xlsx","csv"].includes(ext)) return "📗";
+    if (["ppt","pptx"].includes(ext)) return "📙";
+    return "📄";
+  }
+
+  function updateToolbar() {
+    const has = files.size > 0;
+    $("convertAllBtn").disabled = !has;
+    $("clearAllBtn").disabled = !has;
+    $("emptyHint").classList.toggle("hidden", has);
+  }
+
+  async function uploadFiles(list) {
+    for (const f of list) {
+      const fd = new FormData();
+      fd.append("file", f);
+      try {
+        const r = await req("/api/upload", { method: "POST", body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail || "上传失败");
+        addCard(d);
+      } catch (e) {
+        toast(`「${f.name}」上传失败：` + e.message, "err");
+      }
+    }
+  }
+
+  function addCard(meta) {
+    const cfg = {
+      file_id: meta.file_id, filename: meta.filename, ext: meta.ext || "",
+      size: meta.size || 0, status: "uploaded", pages: 0,
+      download_url: "", pdf_name: "",
+    };
+    files.set(cfg.file_id, cfg);
+    renderCard(cfg);
+    updateToolbar();
+  }
+
+  function renderCard(cfg) {
+    let li = document.querySelector(`#fileList .file-card[data-id="${cfg.file_id}"]`);
+    const isNew = !li;
+    if (isNew) {
+      li = document.createElement("li");
+      li.className = "file-card";
+      li.dataset.id = cfg.file_id;
+      li.innerHTML = `
+        <span class="fc-icon">${iconFor(cfg.ext)}</span>
+        <div class="fc-info">
+          <div class="fc-name">${escapeHtml(cfg.filename)} <span class="conv-tag pending">待转换</span></div>
+          <div class="fc-meta">${(cfg.ext || "文件").toUpperCase()} · ${fmtSize(cfg.size)}</div>
+        </div>
+        <div class="fc-actions">
+          <button class="btn btn-primary btn-sm act-conv">⚡ 转换</button>
+          <button class="btn btn-ghost btn-sm act-del">✕</button>
+        </div>`;
+      $("fileList").appendChild(li);
+      li.querySelector(".act-conv").addEventListener("click", () => doConvert(cfg.file_id));
+      li.querySelector(".act-del").addEventListener("click", () => removeCard(cfg.file_id));
+    } else {
+      // 刷新标签和按钮
+      const nameEl = li.querySelector(".fc-name");
+      const actionsEl = li.querySelector(".fc-actions");
+      let tag, btns = "";
+      if (cfg.status === "uploaded") {
+        tag = '<span class="conv-tag pending">待转换</span>';
+        btns = '<button class="btn btn-primary btn-sm act-conv">⚡ 转换</button>' +
+               '<button class="btn btn-ghost btn-sm act-del">✕</button>';
+      } else if (cfg.status === "converting") {
+        tag = '<span class="conv-tag">⏳ 转换中…</span>';
+        btns = '<button class="btn btn-ghost btn-sm" disabled>转换中…</button>' +
+               '<button class="btn btn-ghost btn-sm act-del">✕</button>';
+      } else if (cfg.status === "done") {
+        const pages = cfg.pages ? ` · ${cfg.pages}页` : "";
+        tag = `<span class="conv-tag done">✅ 完成${pages} · 30秒后自动清理</span>`;
+        btns = `<a class="btn btn-primary btn-sm act-dl" href="${cfg.download_url}" download="${escapeHtml(cfg.pdf_name)}">⬇ 下载 PDF</a>` +
+               '<button class="btn btn-ghost btn-sm act-del">✕</button>';
+      } else if (cfg.status === "error") {
+        tag = `<span class="conv-tag err" title="${escapeHtml(cfg.error || "")}">❌ 失败</span>`;
+        btns = '<button class="btn btn-primary btn-sm act-conv">🔄 重试</button>' +
+               '<button class="btn btn-ghost btn-sm act-del">✕</button>';
+      }
+      nameEl.innerHTML = escapeHtml(cfg.filename) + tag;
+      actionsEl.innerHTML = btns;
+      actionsEl.querySelector(".act-conv")?.addEventListener("click", () => doConvert(cfg.file_id));
+      actionsEl.querySelector(".act-dl")?.addEventListener("click", () => scheduleDownloadCleanup(cfg.file_id));
+      actionsEl.querySelector(".act-del")?.addEventListener("click", () => removeCard(cfg.file_id));
+    }
+  }
+
+  async function doConvert(fid) {
+    const cfg = files.get(fid);
+    if (!cfg) return;
+    cfg.status = "converting"; cfg.error = "";
+    renderCard(cfg);
+    try {
+      const r = await req("/api/convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_id: fid }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || "转换失败");
+      cfg.status = "done";
+      cfg.pages = d.pages || 0;
+      cfg.download_url = d.download_url;
+      cfg.pdf_name = d.filename;
+      renderCard(cfg);
+      toast(`${cfg.filename} → ${d.filename} ✓`, "ok");
+    } catch (e) {
+      cfg.status = "error";
+      cfg.error = e.message;
+      renderCard(cfg);
+      toast(`「${cfg.filename}」转换失败：` + e.message, "err");
+    }
+  }
+
+  async function convertAll() {
+    for (const fid of files.keys()) {
+      const cfg = files.get(fid);
+      if (cfg && cfg.status !== "done" && cfg.status !== "converting") {
+        await doConvert(fid);
+      }
+    }
+  }
+
+  async function removeCard(fid) {
+    // 先调后端删，如果后端拒绝（文件正在打印中），恢复卡片
+    try {
+      const r = await req("/api/delete", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_id: fid }),
+      });
+      const d = await r.json();
+      if (d.ok === false) {
+        toast(d.reason || "文件正在使用中，无法删除", "err");
+        return;  // 不移除卡片
+      }
+    } catch (e) {
+      toast("删除失败：" + e.message, "err");
+      return;
+    }
+    files.delete(fid);
+    const li = document.querySelector(`#fileList .file-card[data-id="${fid}"]`);
+    if (li) li.remove();
+    updateToolbar();
+  }
+  function clearAll() { Array.from(files.keys()).forEach(removeCard); }
+
+  // 下载后 30 秒自动清理文件（避免用户下完就忘删占磁盘）
+  const DL_CLEANUP_SECONDS = 30;
+  async function scheduleDownloadCleanup(fid) {
+    const cfg = files.get(fid);
+    if (!cfg) return;
+    // 只排一次，避免用户连续点下载触发多个定时器
+    if (cfg._cleanupTimer) return;
+    toast(`文件将在 ${DL_CLEANUP_SECONDS} 秒后自动清理，如需保留请自行备份`, "ok");
+    cfg._cleanupTimer = setTimeout(async () => {
+      // 通知后端删物理文件（如果正在打印中会被拒绝，不强制删）
+      try {
+        const r = await req("/api/delete", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_id: fid }),
+        });
+        const d = await r.json();
+        if (d.ok === false) {
+          // 文件正在打印中，跳过自动清理，交给兜底 30 分钟过期清理
+          toast("文件正在打印中，已跳过自动清理", "err");
+          return;
+        }
+      } catch (e) { return; }
+      // 后端确认删除成功 → 前端移除卡片
+      files.delete(fid);
+      const li = document.querySelector(`#fileList .file-card[data-id="${fid}"]`);
+      if (li) li.remove();
+      updateToolbar();
+      toast("已自动清理转换后的文件 ✓", "ok");
+    }, DL_CLEANUP_SECONDS * 1000);
+  }
+
+  // ===== 绑定 =====
+  $("dropzone").addEventListener("click", () => $("fileInput").click());
+  $("fileInput").addEventListener("change", (e) => {
+    if (e.target.files.length) uploadFiles(e.target.files);
+    e.target.value = "";
+  });
+  ["dragover","dragenter"].forEach((ev) =>
+    $("dropzone").addEventListener(ev, (e) => { e.preventDefault(); $("dropzone").classList.add("drag"); })
+  );
+  ["dragleave","drop"].forEach((ev) =>
+    $("dropzone").addEventListener(ev, (e) => { e.preventDefault(); $("dropzone").classList.remove("drag"); })
+  );
+  $("dropzone").addEventListener("drop", (e) => {
+    if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+  });
+  $("convertAllBtn").addEventListener("click", convertAll);
+  $("clearAllBtn").addEventListener("click", clearAll);
+  $("logoutBtn").addEventListener("click", async () => {
+    try { await fetch("/api/logout", { method: "POST" }); } catch (e) {}
+    location.href = "/login";
+  });
+  </script>
+</body>
+</html>
