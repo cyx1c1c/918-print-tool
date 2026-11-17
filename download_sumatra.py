@@ -1,6 +1,6 @@
 """下载 SumatraPDF 便携版到 vendor/SumatraPDF.exe（需在有网环境运行）。
 
-办公室电脑不联网，请在**有网的开发机**上运行本脚本下载好 exe，
+918实验室的打印电脑不联网，请在**有网的开发机**上运行本脚本下载好 exe，
 随项目一起拷贝到打印机电脑即可。
 
     python download_sumatra.py

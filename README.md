@@ -1,6 +1,6 @@
-# 🖨️ 办公室云打印系统（print-tools）
+# 🖨️ 918实验室云打印系统（print-tools）
 
-让办公室里那台「只连着一台 Windows 电脑、又不联网」的打印机，变成人人可用的**网页打印服务**。
+让918实验室里那台「只连着一台 Windows 电脑、又不联网」的打印机，变成人人可用的**网页打印服务**。
 同事在自己电脑浏览器打开网址、或手机扫码，就能上传文件、预览、选配置、一键打印——再也不用排队插 U 盘。
 
 ---
@@ -142,3 +142,7 @@ install.bat / start.bat   一键安装 / 启动
 download_sumatra.py       下载打印引擎
 install_autostart.py      开机自启
 ```
+
+---
+
+> 本项目修改自 [karl20888/print-tools](https://github.com/karl20888/print-tools)。
