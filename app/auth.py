@@ -99,6 +99,11 @@ def destroy_session(token: str | None) -> None:
         _sessions.pop(token, None)
 
 
+def clear_sessions() -> None:
+    """清空所有登录会话（凭据热更新时调用）。"""
+    _sessions.clear()
+
+
 # ============================ 防爆破（按 IP） ============================
 _attempts: dict[str, tuple[int, float]] = {}  # ip -> (失败次数, 锁定截止 epoch)
 
@@ -124,6 +129,11 @@ def record_failure(ip: str, max_attempts: int, lockout_seconds: int) -> None:
 def record_success(ip: str) -> None:
     """登录成功，清空该 IP 的失败记录。"""
     _attempts.pop(ip, None)
+
+
+def clear_lockouts() -> None:
+    """清空所有防爆破锁定记录（凭据热更新时调用）。"""
+    _attempts.clear()
 
 
 # ============================ CLI：生成哈希密码 ============================

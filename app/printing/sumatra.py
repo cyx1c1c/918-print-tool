@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Callable, Optional
 
 from .. import config
 from ..models import PrintOptions
-from . import nup, pdfutil
+from . import nup, pdfutil, printers
 
 # Windows 下隐藏弹出的控制台窗口
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -77,8 +78,17 @@ def _prepare_pdf(pdf_path: Path, opts: PrintOptions) -> tuple[Path, str, list[Pa
     return work, page_range, temps
 
 
-def print_pdf(pdf_path: Path, opts: PrintOptions) -> None:
-    """按选项打印 PDF；失败抛 PrintError。"""
+def print_pdf(
+    pdf_path: Path,
+    opts: PrintOptions,
+    on_jobs_submitted: Optional[Callable[[list[int]], None]] = None,
+    should_cancel: Optional[Callable[[], bool]] = None,
+) -> None:
+    """按选项打印 PDF；失败抛 PrintError。
+
+    on_jobs_submitted: 每份送入打印队列后回调，参数是新增的 Windows 作业 id。
+    should_cancel: 每份打印前后检查是否已被用户取消，取消则尽快停止后续份数。
+    """
     pdf_path = Path(pdf_path)
     opts = opts.normalized()
 
@@ -91,9 +101,9 @@ def print_pdf(pdf_path: Path, opts: PrintOptions) -> None:
     work_pdf, page_range, temps = _prepare_pdf(pdf_path, opts)
     settings = _build_settings(opts, page_range)
 
-    # 打印机参数：空=系统默认打印机
+    # 打印机参数：空=系统默认打印机；显示名/别名先解析成 Windows 真实名称
     if opts.printer.strip():
-        target = ["-print-to", opts.printer.strip()]
+        target = ["-print-to", printers.resolve_printer(opts.printer.strip())]
     else:
         target = ["-print-to-default"]
 
@@ -105,6 +115,11 @@ def print_pdf(pdf_path: Path, opts: PrintOptions) -> None:
 
     try:
         for i in range(opts.copies):
+            if should_cancel and should_cancel():
+                return
+
+            # 记录打印前的队列作业，用于找出本次送入的新作业（取消时要用）
+            before_ids = printers.spool_job_ids(opts.printer)
             proc = subprocess.run(
                 cmd,
                 timeout=_PRINT_TIMEOUT,
@@ -117,6 +132,14 @@ def print_pdf(pdf_path: Path, opts: PrintOptions) -> None:
                     f"SumatraPDF 打印失败（第 {i + 1} 份，返回码 "
                     f"{proc.returncode}）：{msg or '未知错误'}"
                 )
+
+            new_ids = printers.new_spool_job_ids(
+                opts.printer, before_ids, doc_hint=pdf_path.stem
+            )
+            if new_ids and on_jobs_submitted:
+                on_jobs_submitted(new_ids)
+            if should_cancel and should_cancel():
+                return
     except subprocess.TimeoutExpired as e:
         raise PrintError(f"打印超时（>{_PRINT_TIMEOUT}s）：{pdf_path.name}") from e
     except FileNotFoundError as e:

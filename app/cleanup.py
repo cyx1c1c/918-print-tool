@@ -31,7 +31,7 @@ def _sweep_once() -> None:
 
     # 2) 清理终态且超期的任务记录
     for job in manager.all_jobs():
-        if job.status in (JobStatus.DONE, JobStatus.FAILED) and job.finished_at:
+        if job.status in (JobStatus.DONE, JobStatus.FAILED, JobStatus.CANCELED) and job.finished_at:
             if now - job.finished_at >= retention:
                 manager.remove(job.id)
 

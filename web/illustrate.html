@@ -236,7 +236,7 @@
         <li>
           <span class="step-no">4</span>
           <div><b>打印并取纸</b>
-            <p>点「打印」，等任务状态变成「已完成」后到打印机取纸。</p>
+            <p>点「打印」，等任务状态变成「已完成」后到打印机取纸；双面任务中途会提示翻面，翻面后点「继续打印」。</p>
           </div>
         </li>
       </ol>
@@ -274,13 +274,12 @@
             <div><dt>双面</dt><dd>需手动翻面</dd></div>
             <div><dt>纸张</dt><dd>A4</dd></div>
             <div><dt>打印选项</dt>
-              <dd><code>HP Color LaserJet Pro MFP M176 PCLmS</code><br />
-                  或 <code>Hewlett-Packard HP Color LaserJet Pro MFP M176n</code></dd>
+              <dd><code>HP Color LaserJet Pro MFP M176</code></dd>
             </div>
           </dl>
           <ul class="dev-points">
-            <li>两个名称指向同一台设备，<b>任选其一</b>即可。</li>
-            <li>如果其中一个名称提交后没有反应，换另一个名称再试。</li>
+            <li>系统已把两个 Windows 驱动名称合并成一个显示名，下拉框只会看到这一项。</li>
+            <li>内部会自动选择当前可用的驱动，不需要再手动换名称。</li>
           </ul>
         </article>
       </div>
@@ -288,7 +287,7 @@
       <div class="pick">
         <div class="pick-row"><span>黑白文档、想快一点</span><b>选 HP LaserJet 1020</b></div>
         <div class="pick-row"><span>需要彩色输出</span><b>选 HP Color LaserJet Pro MFP M176</b></div>
-        <div class="pick-row"><span>需要双面</span><b>任选一台，翻面后到打印站电脑点「继续」</b></div>
+        <div class="pick-row"><span>需要双面</span><b>任选一台，翻面后在网页点「继续打印」</b></div>
       </div>
 
       <h2 class="sec-title">使用须知</h2>
@@ -298,8 +297,8 @@
           <p>打印前确认页数、方向和内容无误。页面比纸张大时，缩放默认「适当缩小」，可避免只印出左上角。</p>
         </div>
         <div class="notice warn">
-          <b>双面需要手动翻面并点「继续」</b>
-          <p>两台设备都没有自动双面，需要手动完成：第一面打印完后，把纸按正确方向翻面放回纸盘，再到打印站电脑（运行本系统、连接打印机的那台）的打印机窗口点「继续」，才会打印第二面。只翻纸不点「继续」，任务会一直停着。</p>
+          <b>双面需要手动翻面并点「继续打印」</b>
+          <p>两台设备都没有自动双面，需要手动完成：第一面打印完后，任务会变成「等待翻面」。把纸按正确方向翻面放回纸盘，在自己的浏览器任务列表点「继续打印」，打印机就会继续打第二面。若网页提示找不到暂停任务，再到打印站电脑点一次「继续」。</p>
         </div>
         <div class="notice">
           <b>「等待打印机」不是失败</b>
@@ -321,12 +320,13 @@
 
       <div class="cancel-box">
         <b>打错了怎么取消？</b>
-        <p>网页上的「打印任务」只显示进度，<b>没有取消按钮</b>。发现打错后不要反复点打印，请尽快按下面步骤取消：</p>
+        <p>在「打印任务」列表里，尚未结束的任务右侧有「取消」按钮，点击即可取消。若页面已经进入打印机内存，网页取消可能拦不住，请继续按下面步骤处理：</p>
         <ol>
-          <li>先在打印机面板按「取消 / 停止」键（如果有），阻止它继续出纸。</li>
-          <li>到打印站电脑（运行本系统、连接打印机的那台）打开打印队列：双击任务栏右下角的打印机图标；
-              或按 <code>Win + R</code> 输入 <code>control printers</code> 回车，再双击对应打印机。</li>
-          <li>在队列里找到刚提交的文档，右键 →「取消」。彩色打印机有两个名称，一个队列里找不到时，检查另一个名称的队列。</li>
+          <li>先在网页的「打印任务」列表里点「取消」。</li>
+          <li>如果打印机仍在出纸，按打印机面板的「取消 / 停止」键（如果有）。</li>
+          <li>仍停不下来时，到打印站电脑（运行本系统、连接打印机的那台）打开打印队列：双击任务栏右下角的打印机图标；
+              或按 <code>Win + R</code> 输入 <code>control printers</code> 回车，再双击对应打印机。找到文档后右键 →「取消」。
+              彩色打印机有两个名称，一个队列里找不到时，检查另一个名称的队列。</li>
           <li>如果队列里已经没有任务、打印机还在出纸：这些页面已经送进打印机内存，按打印机面板的取消键；
               仍停不下来时，可先按电源键关闭打印机，在打印站电脑清空队列后再开机。</li>
         </ol>
@@ -336,15 +336,15 @@
       <h2 class="sec-title">常见问题</h2>
       <details class="faq">
         <summary>选了「彩色」，打出来还是黑白？</summary>
-        <p>大概率是选了 HP LaserJet 1020，它只能打印黑白。需要彩色时请把顶部「打印机」切换为 HP Color LaserJet Pro MFP M176 的两个名称之一，并在文件卡片上选择「彩色」。</p>
+        <p>大概率是选了 HP LaserJet 1020，它只能打印黑白。需要彩色时请把顶部「打印机」切换为 HP Color LaserJet Pro MFP M176，并在文件卡片上选择「彩色」。</p>
       </details>
       <details class="faq">
         <summary>双面只打了一面，或停在中间不动？</summary>
-        <p>这两台打印机都没有自动双面。第一面打完后，需要把纸按正确方向翻面放回纸盘，然后到打印站电脑（运行本系统、连接打印机的那台）的打印机队列或驱动提示窗口点「继续」，第二面才会继续打印。只翻纸不点「继续」，任务会一直停着。若没有出现提示，可以改用「更多设置 → 页码范围」分两次打印奇偶页。</p>
+        <p>这两台打印机都没有自动双面。第一面打完后，任务会显示「等待翻面」；把纸按正确方向翻面放回纸盘，然后在网页任务列表点「继续打印」。如果提示找不到暂停任务，再到打印站电脑的打印机队列或驱动提示窗口点「继续」；若仍没有提示，可以改用「更多设置 → 页码范围」分两次打印奇偶页。</p>
       </details>
       <details class="faq">
         <summary>在网页上能取消打印吗？</summary>
-        <p>不能。网页上的「打印任务」只显示进度，没有取消按钮。请按上方「打错了怎么取消」的步骤，到打印站电脑的对应打印机队列里取消；彩色打印机两个名称的队列都要看一下。</p>
+        <p>可以。排队中、转换中、打印中、等待打印机、等待翻面的任务，右侧都有「取消」按钮。若页面已经进入打印机内存，网页取消可能无效，请按上方「打错了怎么取消」的步骤，到打印机面板或打印站电脑处理。</p>
       </details>
       <details class="faq">
         <summary>任务一直显示「等待打印机」怎么办？</summary>
@@ -383,6 +383,7 @@
           <li>该电脑需安装 <b>Microsoft Office</b>，Word / Excel / PPT 转 PDF 依赖它。</li>
           <li>服务要跑在<b>已登录的桌面会话</b>里，不要注册成无人值守服务，否则 Office 转换会失败。</li>
           <li>打印引擎 <code>vendor/SumatraPDF.exe</code> 必须存在，缺失时无法打印。</li>
+          <li>彩色打印机在 Windows 里可能注册了两个驱动名，系统会自动合并显示；手动清空队列时仍需两个名称都检查。</li>
         </ul>
       </div>
 
@@ -412,6 +413,14 @@
 python install_autostart.py --uninstall</code></pre>
         <p class="muted">采用「登录后从启动文件夹运行」，保证有桌面会话，Office COM 才能正常转换。</p>
       </div>
+      <div class="panel" style="margin-top: 12px;">
+        <h3>服务健康自检</h3>
+        <p class="muted">在任意电脑打开
+          <a href="/api/health" target="_blank" rel="noopener"><code>/api/health</code></a>，
+          可查看打印机、队列、Office COM、SumatraPDF 和上传目录状态。
+          加 <a href="/api/health?deep=1" target="_blank" rel="noopener"><code>?deep=1</code></a>
+          会额外尝试启动 Office 组件，请在空闲时使用。</p>
+      </div>
 
       <h2 class="sec-title">常用配置</h2>
       <div class="table-wrap">
@@ -423,7 +432,7 @@ python install_autostart.py --uninstall</code></pre>
             <tr>
               <td>登录开关与账号</td>
               <td><code>config.ini</code> 的 <code>[auth]</code></td>
-              <td>源码运行时在项目根目录，打包后在 exe 同目录；改动后重启生效。默认 <code>enabled = false</code>。</td>
+              <td>源码运行时在项目根目录，打包后在 exe 同目录；保存后自动热加载，无需重启。修改用户名/密码/开关会让已登录会话和失败锁定立即失效。默认 <code>enabled = false</code>。</td>
             </tr>
             <tr>
               <td>重置登录密码</td>
@@ -453,7 +462,7 @@ python install_autostart.py --uninstall</code></pre>
           </tbody>
         </table>
       </div>
-      <p class="muted">环境变量优先级高于 <code>config.ini</code>。真实密码不要写进仓库，也不要写在本页。</p>
+      <p class="muted">环境变量优先级高于 <code>config.ini</code>，但只在启动时读取，修改后需重启；<code>config.ini</code> 保存后自动生效。真实密码不要写进仓库，也不要写在本页。</p>
 
       <h2 class="sec-title">常见故障速查</h2>
       <div class="table-wrap">
@@ -476,11 +485,11 @@ python install_autostart.py --uninstall</code></pre>
             </tr>
             <tr>
               <td>双面打印停在第一面</td>
-              <td>属于手动双面流程：把纸翻面放回纸盘后，需在打印站电脑的打印机队列或驱动提示窗口点「继续」；若没有出现提示，改为单面 + 页码范围分两次打印。</td>
+              <td>任务显示「等待翻面」时，网页「继续打印」会恢复被驱动暂停的队列作业；若无效，再在打印站电脑的打印机队列或驱动提示窗口点「继续」。没有提示时改为单面 + 页码范围分两次打印。</td>
             </tr>
             <tr>
               <td>任务取消不掉 / 打印机一直出纸</td>
-              <td>网页端没有取消按钮。到打印站电脑打开对应打印机队列（M176 两个名称都要检查）→ 右键任务「取消」；队列为空仍出纸时，按打印机面板取消键，必要时重启 <b>Print Spooler</b> 服务（会取消所有人的任务）。</td>
+              <td>系统支持网页取消；若网页取消后仍出纸，说明页面已进入打印机内存。到打印站电脑打开对应打印机队列（M176 两个名称都要检查）→ 右键任务「取消」；队列为空仍出纸时，按打印机面板取消键，必要时重启 <b>Print Spooler</b> 服务（会取消所有人的任务）。</td>
             </tr>
             <tr>
               <td>文字超大 / 只印出左上角</td>
@@ -506,7 +515,7 @@ python install_autostart.py --uninstall</code></pre>
       <ol class="checklist">
         <li>从仓库拉取最新代码：<code>git pull</code>。</li>
         <li>依赖有变化时重新执行 <code>install.bat</code>；使用 exe 部署则重新执行 <code>python build.py</code>。</li>
-        <li>重启服务后，用黑白、彩色、双面（翻面后点「继续」）、多份各打印一张测试页。</li>
+        <li>重启服务后，用黑白、彩色、双面（翻面后在网页点「继续打印」）、多份各打印一张测试页，并测试一次任务取消。</li>
         <li>不要向仓库提交 <code>config.ini</code>、<code>uploads/</code> 和用户上传的文件。</li>
         <li>设备增减、名称变化或要求变化时，直接修改本页 <code>web/illustrate.html</code> 中的设备卡片。</li>
         <li>交接时确认：打印站电脑、Office 授权、打印机驱动、SumatraPDF、GitHub 仓库权限。</li>

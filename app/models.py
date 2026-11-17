@@ -14,8 +14,10 @@ class JobStatus(str, Enum):
     CONVERTING = "converting"  # 转换中
     PRINTING = "printing"    # 打印中
     WAITING = "waiting"      # 已送到打印机，等待其真正打印（可能休眠/离线）
+    WAITING_FLIP = "waiting_flip"  # 手动双面：等待用户翻面后继续
     DONE = "done"            # 完成
     FAILED = "failed"        # 失败
+    CANCELED = "canceled"    # 已取消
 
     @property
     def label(self) -> str:
@@ -25,8 +27,10 @@ class JobStatus(str, Enum):
             "converting": "转换中",
             "printing": "打印中",
             "waiting": "等待打印机",
+            "waiting_flip": "等待翻面",
             "done": "已完成",
             "failed": "失败",
+            "canceled": "已取消",
         }[self.value]
 
 
@@ -81,8 +85,26 @@ class PrintJob:
     note: str = ""                     # 状态提示（如"打印机休眠，请按唤醒键"）
     printer_name: str = ""             # 实际打印机名（供状态监控）
     printing_since: Optional[float] = None  # 送入打印队列的时间
+    spool_job_ids: list[int] = field(default_factory=list)  # Windows 队列作业 id
+    cancel_requested: bool = False     # 用户是否已请求取消
     created_at: float = field(default_factory=time.time)
     finished_at: Optional[float] = None  # 完成/失败时间，用于清理倒计时
+
+    @property
+    def cancellable(self) -> bool:
+        """任务是否还能取消（终态或取消中的任务不再显示取消按钮）。"""
+        return not self.cancel_requested and self.status in (
+            JobStatus.QUEUED,
+            JobStatus.CONVERTING,
+            JobStatus.PRINTING,
+            JobStatus.WAITING,
+            JobStatus.WAITING_FLIP,
+        )
+
+    @property
+    def resumable(self) -> bool:
+        """手动双面任务是否正在等待用户点「继续打印」。"""
+        return self.status == JobStatus.WAITING_FLIP
 
     def to_public(self) -> dict:
         """转成前端可消费的精简字典。"""
@@ -95,4 +117,6 @@ class PrintJob:
             "note": self.note,
             "copies": self.options.copies,
             "created_at": self.created_at,
+            "cancellable": self.cancellable,
+            "resumable": self.resumable,
         }

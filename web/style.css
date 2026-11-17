@@ -124,13 +124,30 @@ body {
 .job-left { flex: 1; margin-right: 8px; min-width: 0; }
 .job-name { word-break: break-all; }
 .job-note { font-size: 12px; color: var(--warn); margin-top: 3px; }
+.job-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.job-cancel {
+  padding: 4px 10px; border-radius: 8px; border: 1px solid #f0c2c2;
+  background: #fff5f5; color: #c0392b; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .15s, opacity .15s; white-space: nowrap;
+}
+.job-cancel:hover:not(:disabled) { background: #ffe8e8; }
+.job-cancel:disabled { opacity: .5; cursor: not-allowed; }
+.job-continue {
+  padding: 4px 10px; border-radius: 8px; border: 1px solid #bfe8cf;
+  background: #e8f7ee; color: #168a4a; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .15s, opacity .15s; white-space: nowrap;
+}
+.job-continue:hover:not(:disabled) { background: #d8f2e2; }
+.job-continue:disabled { opacity: .5; cursor: not-allowed; }
 .badge { padding: 3px 9px; border-radius: 20px; font-size: 12px; white-space: nowrap; color: #fff; }
 .badge.queued { background: var(--muted); }
 .badge.converting { background: var(--warn); }
 .badge.printing { background: var(--primary); }
 .badge.waiting { background: #ef8f3c; }
+.badge.waiting_flip { background: #d97706; }
 .badge.done { background: var(--ok); }
 .badge.failed { background: var(--err); }
+.badge.canceled { background: #8b93a5; }
 
 /* 弹窗 */
 .modal {

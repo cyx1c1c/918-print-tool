@@ -11,6 +11,7 @@ import configparser
 import os
 import secrets
 import sys
+import threading
 from pathlib import Path
 
 
@@ -61,7 +62,7 @@ SUMATRA_PATH = Path(
 # ---- 文件保留与清理 ----
 RETENTION_MINUTES = int(os.environ.get("PRINT_TOOLS_RETENTION", "30"))
 CLEANUP_INTERVAL_SECONDS = 300  # 每 5 分钟扫一次过期文件
-POST_PRINT_PURGE_SECONDS = 30   # 打印任务 DONE/FAILED 后，延迟多少秒自动清理源文件（兜底仍由 RETENTION_MINUTES 负责）
+POST_PRINT_PURGE_SECONDS = 30   # 打印任务 DONE/FAILED/CANCELED 后，延迟多少秒自动清理源文件（兜底仍由 RETENTION_MINUTES 负责）
 
 # ---- 打印机状态监控 ----
 PRINT_MONITOR_INTERVAL = 3   # 监控轮询间隔（秒）
@@ -87,14 +88,30 @@ ALLOWED_EXTS = (
 # 不能放进只读资源目录：打包后那是临时只读目录，且凭据本就该由部署者维护。
 CONFIG_PATH = writable_dir() / "config.ini"
 
-# 首次自动生成密码时填入，供启动横幅打印一次（之后置空）。
+# 首次自动生成密码时填入，供启动横幅打印一次。
 AUTH_FIRST_RUN_PASSWORD: str | None = None
+
+_AUTH_KEYS = (
+    "enabled", "username", "password",
+    "session_hours", "max_attempts", "lockout_minutes",
+)
+_AUTH_DEFAULTS = {
+    "enabled": "false",
+    "username": "admin",
+    "password": "",
+    "session_hours": "12",
+    "max_attempts": "5",
+    "lockout_minutes": "10",
+}
+
+_auth_lock = threading.Lock()
+_last_config_sig: tuple[int, int] | None = None
 
 
 def _default_config_text(password: str) -> str:
     """首次运行时写入的默认 config.ini 文本（含中文注释）。"""
     return (
-        "; 918实验室云打印 - 配置文件（用记事本编辑，改完重启生效）\n"
+        "; 918实验室云打印 - 配置文件（用记事本编辑，保存后自动生效）\n"
         "[auth]\n"
         "; 是否开启登录；默认 false（不需要登录，任何同网用户可直接访问）\n"
         "; 想启用用户名密码验证就改成 true（并设置好下面的密码）\n"
@@ -112,36 +129,40 @@ def _default_config_text(password: str) -> str:
     )
 
 
-def _load_auth() -> dict:
-    """读取 [auth] 配置；文件缺失则生成默认（随机强密码）。环境变量优先级最高。"""
-    global AUTH_FIRST_RUN_PASSWORD
+def _read_auth_section() -> dict | None:
+    """读取 config.ini 的 [auth] 原始值。
 
-    parser = configparser.ConfigParser()
+    文件不存在、不可读或没有 [auth] 段时返回 None，调用方保留当前内存配置。
+    关闭插值，避免密码里出现 % 时被 ConfigParser 误解析。
+    """
     if not CONFIG_PATH.exists():
-        # 首次运行：生成随机强密码并落盘，记下来供横幅打印
-        pwd = secrets.token_urlsafe(12)
-        AUTH_FIRST_RUN_PASSWORD = pwd
-        try:
-            CONFIG_PATH.write_text(_default_config_text(pwd), encoding="utf-8")
-        except OSError:
-            # 极端情况下目录不可写：仍能用内存里的随机密码跑起来
-            pass
-    else:
-        try:
-            parser.read(CONFIG_PATH, encoding="utf-8")
-        except (configparser.Error, OSError):
-            pass
+        return None
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        parser.read(CONFIG_PATH, encoding="utf-8")
+        if not parser.has_section("auth"):
+            return None
+        return {
+            key: parser.get("auth", key, fallback=_AUTH_DEFAULTS[key])
+            for key in _AUTH_KEYS
+        }
+    except (configparser.Error, OSError):
+        return None
 
-    sec = parser["auth"] if parser.has_section("auth") else {}
+
+def _build_auth_settings(raw: dict | None, fallback_password: str = "") -> dict:
+    """把 config.ini 原始值 + 环境变量合并成最终配置。"""
+    raw = raw or {}
 
     def _get(key: str, default: str) -> str:
-        return str(sec.get(key, default)) if hasattr(sec, "get") else default
+        val = raw.get(key, default)
+        return str(val) if val is not None else default
 
     enabled_raw = os.environ.get("PRINT_TOOLS_AUTH_ENABLED", _get("enabled", "false"))
     username = os.environ.get("PRINT_TOOLS_AUTH_USERNAME", _get("username", "admin"))
     password = os.environ.get(
         "PRINT_TOOLS_AUTH_PASSWORD",
-        AUTH_FIRST_RUN_PASSWORD if AUTH_FIRST_RUN_PASSWORD else _get("password", ""),
+        _get("password", "") or fallback_password,
     )
     session_hours = os.environ.get(
         "PRINT_TOOLS_AUTH_SESSION_HOURS", _get("session_hours", "12")
@@ -169,6 +190,74 @@ def _load_auth() -> dict:
     }
 
 
+def _load_auth() -> dict:
+    """启动时读取 [auth]；文件缺失则生成默认（随机强密码）。"""
+    global AUTH_FIRST_RUN_PASSWORD
+
+    if not CONFIG_PATH.exists():
+        # 首次运行：生成随机强密码并落盘，记下来供横幅打印
+        pwd = secrets.token_urlsafe(12)
+        AUTH_FIRST_RUN_PASSWORD = pwd
+        try:
+            CONFIG_PATH.write_text(_default_config_text(pwd), encoding="utf-8")
+        except OSError:
+            # 极端情况下目录不可写：仍能用内存里的随机密码跑起来
+            pass
+
+    raw = _read_auth_section()
+    return _build_auth_settings(raw, fallback_password=AUTH_FIRST_RUN_PASSWORD or "")
+
+
+def _config_signature() -> tuple[int, int] | None:
+    """config.ini 的修改时间 + 大小，用于判断是否需要热加载。"""
+    try:
+        st = CONFIG_PATH.stat()
+        return (st.st_mtime_ns, st.st_size)
+    except OSError:
+        return None
+
+
+def maybe_reload_auth() -> bool:
+    """config.ini 变化时热加载 [auth]。
+
+    返回 True 表示登录开关 / 用户名 / 密码发生变化，调用方应清空已有会话。
+    文件被删除或格式错误时保留当前内存配置；环境变量仍然优先。
+    """
+    global _last_config_sig
+    global AUTH_ENABLED, AUTH_USERNAME, AUTH_PASSWORD
+    global SESSION_HOURS, MAX_ATTEMPTS, LOCKOUT_MINUTES
+
+    sig = _config_signature()
+    if sig is None:
+        return False
+    with _auth_lock:
+        if _last_config_sig == sig:
+            return False
+        _last_config_sig = sig
+        raw = _read_auth_section()
+        if raw is None:
+            return False
+        settings = _build_auth_settings(raw)
+        credentials_changed = (
+            settings["enabled"] != AUTH_ENABLED
+            or settings["username"] != AUTH_USERNAME
+            or settings["password"] != AUTH_PASSWORD
+        )
+        # 先更新凭据/参数，最后再切换登录开关，避免并发请求读到半新半旧的组合
+        AUTH_USERNAME = settings["username"]
+        AUTH_PASSWORD = settings["password"]
+        SESSION_HOURS = settings["session_hours"]
+        MAX_ATTEMPTS = settings["max_attempts"]
+        LOCKOUT_MINUTES = settings["lockout_minutes"]
+        AUTH_ENABLED = settings["enabled"]
+
+    print(
+        f"[config] 已热加载 {CONFIG_PATH.name}："
+        f"登录验证={'开启' if AUTH_ENABLED else '关闭'}，用户名={AUTH_USERNAME}"
+    )
+    return credentials_changed
+
+
 _auth = _load_auth()
 AUTH_ENABLED = _auth["enabled"]
 AUTH_USERNAME = _auth["username"]
@@ -176,3 +265,4 @@ AUTH_PASSWORD = _auth["password"]
 SESSION_HOURS = _auth["session_hours"]
 MAX_ATTEMPTS = _auth["max_attempts"]
 LOCKOUT_MINUTES = _auth["lockout_minutes"]
+_last_config_sig = _config_signature()

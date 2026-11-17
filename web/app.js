@@ -286,30 +286,94 @@ function renderJobs(jobs) {
     left.appendChild(name);
     // 等待打印机时的提示文字（如"打印机休眠，请按唤醒键"）
     const hint = j.status === "failed" ? j.error : j.note;
-    if (hint && (j.status === "waiting" || j.status === "failed")) {
+    if (hint && (j.status === "waiting" || j.status === "waiting_flip"
+        || j.status === "failed" || j.status === "canceled")) {
       const note = document.createElement("div");
       note.className = "job-note";
       note.textContent = hint;
       left.appendChild(note);
     }
 
+    const actions = document.createElement("div");
+    actions.className = "job-actions";
+    if (j.resumable) {
+      const resumeBtn = document.createElement("button");
+      resumeBtn.className = "job-continue";
+      resumeBtn.textContent = "继续打印";
+      resumeBtn.title = "翻面后继续打印第二面";
+      resumeBtn.addEventListener("click", () => resumeJob(j, resumeBtn));
+      actions.appendChild(resumeBtn);
+    }
+    if (j.cancellable) {
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "job-cancel";
+      cancelBtn.textContent = "取消";
+      cancelBtn.title = "取消这个打印任务";
+      cancelBtn.addEventListener("click", () => cancelJob(j, cancelBtn));
+      actions.appendChild(cancelBtn);
+    }
+
     const badge = document.createElement("span");
     badge.className = "badge " + j.status;
     badge.textContent = j.status_label;
     if (j.error) badge.title = j.error;
+    actions.appendChild(badge);
 
     li.appendChild(left);
-    li.appendChild(badge);
+    li.appendChild(actions);
     jobList.appendChild(li);
   });
 }
+async function resumeJob(j, btn) {
+  btn.disabled = true;
+  btn.textContent = "继续中…";
+  try {
+    const r = await req(`/api/jobs/${encodeURIComponent(j.id)}/resume`, { method: "POST" });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "继续失败");
+    const msg = d.message || (d.ok ? "已继续打印" : d.reason || "继续失败");
+    toast(msg, d.ok ? "ok" : "err");
+    if (!d.ok) {
+      btn.disabled = false;
+      btn.textContent = "继续打印";
+    }
+    startPolling();
+  } catch (e) {
+    toast("继续失败：" + e.message, "err");
+    btn.disabled = false;
+    btn.textContent = "继续打印";
+  }
+}
+
+async function cancelJob(j, btn) {
+  if (!confirm(`确定取消「${j.filename}」的打印任务吗？`)) return;
+  btn.disabled = true;
+  btn.textContent = "取消中…";
+  try {
+    const r = await req(`/api/jobs/${encodeURIComponent(j.id)}/cancel`, { method: "POST" });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "取消失败");
+    const msg = d.message || (d.ok ? "已取消" : d.reason || "取消失败");
+    toast(msg, d.ok ? "ok" : "err");
+    if (!d.ok) {
+      btn.disabled = false;
+      btn.textContent = "取消";
+    }
+    startPolling();
+  } catch (e) {
+    toast("取消失败：" + e.message, "err");
+    btn.disabled = false;
+    btn.textContent = "取消";
+  }
+}
+
 async function refreshJobs() {
   try {
     const r = await req("/api/jobs");
     const data = await r.json();
     renderJobs(data.jobs);
     const active = (data.jobs || []).some((j) =>
-      ["queued", "converting", "printing", "waiting"].includes(j.status)
+      ["queued", "converting", "printing", "waiting", "waiting_flip"].includes(j.status)
     );
     if (!active && pollTimer) {
       clearInterval(pollTimer);

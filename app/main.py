@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, cleanup, config
+from . import auth, cleanup, config, health
 from .converters.base import ConversionError
 from .models import PrintJob, PrintOptions
 from .printing import monitor
@@ -179,6 +179,50 @@ def api_job(job_id: str) -> dict:
     return job.to_public()
 
 
+@app.post("/api/jobs/{job_id}/cancel")
+def api_cancel_job(job_id: str) -> dict:
+    """取消任务；已进入打印机内存的页面仍需在打印机面板手动取消。"""
+    ok, message = manager.cancel(job_id)
+    job = manager.get(job_id)
+    if job is None:
+        raise HTTPException(404, "任务不存在")
+    return {
+        "ok": ok,
+        "message": message if ok else "",
+        "reason": "" if ok else message,
+        "job": job.to_public(),
+    }
+
+
+@app.post("/api/jobs/{job_id}/resume")
+def api_resume_job(job_id: str) -> dict:
+    """手动双面：翻面后恢复被驱动暂停的打印队列作业。"""
+    ok, message = manager.resume_duplex(job_id)
+    job = manager.get(job_id)
+    if job is None:
+        raise HTTPException(404, "任务不存在")
+    return {
+        "ok": ok,
+        "message": message if ok else "",
+        "reason": "" if ok else message,
+        "job": job.to_public(),
+    }
+
+
+@app.get("/api/health")
+def api_health(deep: bool = False) -> dict:
+    """服务健康自检：打印机 / 队列 / Office COM / SumatraPDF / 上传目录。"""
+    try:
+        return health.snapshot(deep=deep)
+    except Exception as e:  # noqa: BLE001  自检本身不能把服务带崩
+        return {
+            "ok": False,
+            "status": "fail",
+            "fails": [f"自检失败：{e}"],
+            "warnings": [],
+        }
+
+
 # ---------- 登录认证 ----------
 # 不需要登录即可访问的路径（登录页本身与登录/登出接口）
 _AUTH_WHITELIST = {"/login", "/api/login", "/api/logout", "/favicon.ico"}
@@ -189,7 +233,12 @@ async def require_auth(request: Request, call_next):
     """门卫：未登录的请求一律挡下（API 返 401，页面 302 跳登录页）。
 
     注册在所有路由与静态挂载之前生效，因此能覆盖 /、/files/*、/app.js 等一切路径。
+    每次请求顺带检查 config.ini 是否变化；修改登录凭据会让已有会话立即失效。
     """
+    if config.maybe_reload_auth():
+        auth.clear_sessions()
+        auth.clear_lockouts()
+
     if not config.AUTH_ENABLED or request.url.path in _AUTH_WHITELIST:
         return await call_next(request)
 

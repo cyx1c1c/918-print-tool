@@ -12,12 +12,15 @@ import threading
 import time
 
 from .. import config
-from ..models import JobStatus
+from ..models import SIMPLEX, JobStatus
 from . import printers
 from .jobqueue import manager
 
 # job_id -> {"pages": 已打印页数, "t": 上次有进展时间, "seen": 是否曾见到队列中有任务}
 _progress: dict[str, dict] = {}
+
+# 这些打印机问题优先按「等待打印机」处理，不能误判成等待翻面
+_HARD_PROBLEMS = {"离线", "休眠", "缺纸", "卡纸", "机盖打开", "无墨粉/硒鼓", "出错", "不可用"}
 
 
 def _evaluate(job) -> None:
@@ -37,6 +40,25 @@ def _evaluate(job) -> None:
     prog = _progress.setdefault(job.id, {"pages": pages, "t": now, "seen": False})
     if pending > 0:
         prog["seen"] = True
+
+    # 打印机存在硬故障时先处理故障，避免把缺纸/离线误判成等待翻面
+    hard_problems = [p for p in problems if p in _HARD_PROBLEMS]
+    if hard_problems:
+        manager.set_state(
+            job, JobStatus.WAITING,
+            note="打印机" + "、".join(hard_problems) + "，请检查（休眠请按唤醒键）",
+        )
+        return
+
+    # 双面任务被驱动暂停：让用户翻面后在网页点「继续打印」
+    if job.options.duplex != SIMPLEX and printers.job_needs_continue(
+        q.get("jobs", []), job.spool_job_ids, job.file_id
+    ):
+        manager.set_state(
+            job, JobStatus.WAITING_FLIP,
+            note="请把纸翻面放回纸盘，然后点「继续打印」",
+        )
+        return
 
     # 打印机报告了明确问题（离线/休眠/缺纸/出错…）
     if problems:
@@ -75,7 +97,13 @@ def _evaluate(job) -> None:
 def _loop() -> None:
     while True:
         try:
-            for job in manager.monitored_jobs():
+            jobs = manager.monitored_jobs()
+            active_ids = {j.id for j in jobs}
+            # 清理已完成/已取消任务遗留的进度记录
+            for jid in list(_progress):
+                if jid not in active_ids:
+                    _progress.pop(jid, None)
+            for job in jobs:
                 try:
                     _evaluate(job)
                 except Exception:
