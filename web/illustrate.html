@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>使用与维护 · 918实验室云打印</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    /* ===== 本页专用样式（复用 style.css 的变量与顶栏） ===== */
+    .page-head { margin: 4px 0 16px; }
+    .page-head h1 { font-size: 24px; margin: 0 0 6px; }
+    .page-head p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    /* 标签切换 */
+    .tabs {
+      display: flex; gap: 6px; background: var(--card); padding: 6px;
+      border-radius: 13px; box-shadow: var(--shadow); margin-bottom: 20px;
+    }
+    .tab {
+      flex: 1; border: none; background: transparent; cursor: pointer;
+      padding: 11px 16px; border-radius: 9px; font-size: 15px; font-weight: 600;
+      color: var(--muted); font-family: inherit; transition: background .15s, color .15s;
+    }
+    .tab:hover { background: #f4f6fb; }
+    .tab.active { background: linear-gradient(135deg, var(--primary), #6b8cff); color: #fff; }
+
+    /* 区块标题 */
+    .sec-title {
+      font-size: 17px; margin: 26px 0 12px; padding-left: 11px;
+      border-left: 4px solid var(--primary); line-height: 1.25;
+    }
+    .sec-title:first-child { margin-top: 4px; }
+
+    /* 四步流程 */
+    .steps {
+      list-style: none; margin: 0; padding: 0;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .steps li {
+      background: var(--card); border-radius: 12px; box-shadow: var(--shadow);
+      padding: 14px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .step-no {
+      width: 26px; height: 26px; border-radius: 50%; flex: none;
+      background: #eef2ff; color: var(--primary); font-weight: 700; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .steps b { font-size: 14px; }
+    .steps p { margin: 5px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.65; }
+
+    /* 设备卡片 */
+    .dev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .dev-card {
+      background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
+      padding: 16px; border-top: 4px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .dev-card.bw { border-top-color: #7c869c; }
+    .dev-card.color { border-top-color: #8b5cf6; }
+    .dev-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .dev-head h3 { font-size: 15px; margin: 0; line-height: 1.4; }
+    .dev-badge { font-size: 12px; padding: 3px 9px; border-radius: 20px; font-weight: 700; }
+    .dev-badge.bw { background: #eef1f6; color: #5b6478; }
+    .dev-badge.color { background: #f1eafe; color: #7c4ddb; }
+    .dev-desc { font-size: 13px; color: var(--muted); line-height: 1.65; margin: 8px 0 12px; }
+    .spec { margin: 0; border-top: 1px solid var(--border); }
+    .spec > div {
+      display: flex; gap: 10px; padding: 7px 0;
+      border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .spec dt { color: var(--muted); width: 62px; flex: none; }
+    .spec dd { margin: 0; flex: 1; min-width: 0; line-height: 1.6; }
+    .spec code, .panel code, .callout code, .checklist code, .pick code {
+      font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+      background: #f4f6fb; padding: 1px 5px; border-radius: 4px; word-break: break-all;
+    }
+    .dev-points { margin: 10px 0 0; padding-left: 18px; font-size: 12.5px; color: #4a5165; line-height: 1.7; }
+    .dev-points li + li { margin-top: 4px; }
+    .dev-points b { color: var(--text); }
+
+    /* 选机建议 */
+    .pick { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 2px 15px; margin-top: 12px; }
+    .pick-row {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
+      padding: 10px 0; font-size: 13.5px; border-bottom: 1px solid var(--border);
+    }
+    .pick-row:last-child { border-bottom: none; }
+    .pick-row span { color: var(--muted); flex: none; }
+    .pick-row b { font-weight: 600; text-align: right; }
+
+    /* 使用须知 */
+    .notice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .notice { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 13px 15px; }
+    .notice b { font-size: 13.5px; }
+    .notice p { margin: 5px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+    .notice.warn { background: #fffaf0; border: 1px solid #ffe3b3; }
+    .notice.warn b { color: #a9700e; }
+
+    /* 取消打印说明 */
+    .cancel-box {
+      background: #fff5f5; border: 1px solid #ffd6d6; border-left: 4px solid var(--err);
+      border-radius: 12px; padding: 14px 16px; margin-top: 12px;
+    }
+    .cancel-box b { font-size: 14px; color: #b63b3b; }
+    .cancel-box p { margin: 6px 0 0; font-size: 12.5px; color: #6b4a4a; line-height: 1.75; }
+    .cancel-box ol { margin: 8px 0 0; padding-left: 20px; font-size: 12.5px; color: #6b4a4a; line-height: 1.8; }
+    .cancel-box code {
+      font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+      background: #fff; padding: 1px 5px; border-radius: 4px; border: 1px solid #ffd6d6;
+    }
+
+    /* 常见问题 */
+    details.faq {
+      background: var(--card); border-radius: 10px; box-shadow: var(--shadow);
+      padding: 0 15px; margin-bottom: 8px;
+    }
+    details.faq summary {
+      cursor: pointer; padding: 12px 0; font-size: 13.5px; font-weight: 600;
+      list-style: none; display: flex; justify-content: space-between; gap: 10px;
+    }
+    details.faq summary::-webkit-details-marker { display: none; }
+    details.faq summary::after { content: "+"; color: var(--muted); font-weight: 400; }
+    details.faq[open] summary::after { content: "−"; }
+    details.faq p { margin: 0; padding: 0 0 13px; font-size: 13px; color: var(--muted); line-height: 1.75; }
+
+    /* 维护说明 */
+    .repo-card {
+      background: linear-gradient(135deg, #eef2ff, #ffffff);
+      border: 1px solid #dfe5ff; border-radius: 14px; box-shadow: var(--shadow);
+      padding: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+    }
+    .repo-card > div:first-child { flex: 1; min-width: 220px; }
+    .repo-card h2 { font-size: 17px; margin: 0 0 6px; }
+    .repo-card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.65; }
+    .repo-card .btn { text-decoration: none; display: inline-flex; align-items: center; }
+    .repo-url {
+      width: 100%; font-size: 12px; color: var(--muted);
+      background: #fff; border: 1px dashed var(--border); border-radius: 8px; padding: 8px 10px;
+    }
+
+    .callout {
+      background: #fffaf0; border: 1px solid #ffe3b3; border-left: 4px solid var(--warn);
+      border-radius: 12px; padding: 14px 16px; margin-top: 14px;
+    }
+    .callout b { font-size: 14px; color: #8a5a08; }
+    .callout ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: #6b5b3e; line-height: 1.8; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .panel { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 14px 16px; }
+    .panel h3 { font-size: 14px; margin: 0 0 8px; }
+    .panel ol, .panel ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); line-height: 1.85; }
+    .panel pre {
+      background: #f7f9fe; border: 1px solid var(--border); border-radius: 9px;
+      padding: 10px 12px; overflow: auto; margin: 8px 0;
+    }
+    .panel pre code { background: none; padding: 0; font-size: 12px; }
+    .muted { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+
+    .table-wrap { overflow-x: auto; background: var(--card); border-radius: 12px; box-shadow: var(--shadow); }
+    .table-wrap table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 13px; }
+    .table-wrap th, .table-wrap td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .table-wrap th { background: #fafbfe; color: var(--muted); font-size: 12px; font-weight: 600; }
+    .table-wrap tbody tr:last-child td { border-bottom: none; }
+    .table-wrap td:first-child { font-weight: 600; white-space: nowrap; }
+
+    .checklist {
+      background: var(--card); border-radius: 12px; box-shadow: var(--shadow);
+      padding: 14px 18px 14px 34px; font-size: 13.5px; color: #3c4358; line-height: 1.9;
+    }
+    .checklist li::marker { color: var(--primary); font-weight: 700; }
+    .repo-foot { text-align: center; font-size: 13px; color: var(--muted); margin: 24px 0 6px; }
+    .repo-foot a { color: var(--primary); }
+
+    @media (max-width: 760px) {
+      .steps { grid-template-columns: 1fr 1fr; }
+      .dev-grid, .notice-grid, .two-col { grid-template-columns: 1fr; }
+      .topbar-nav { flex-wrap: wrap; }
+      .page-head h1 { font-size: 21px; }
+    }
+    @media (max-width: 460px) {
+      .steps { grid-template-columns: 1fr; }
+      .pick-row { flex-direction: column; gap: 3px; }
+      .pick-row b { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-row">
+      <span class="logo">🖨️ 918实验室云打印</span>
+      <span class="subtitle">设备怎么用 · 系统怎么维护</span>
+      <button id="logoutBtn" class="btn btn-ghost btn-sm topbar-logout">🚪 登出</button>
+    </div>
+    <nav class="topbar-nav">
+      <a href="/" class="nav-link">🖨️ 打印</a>
+      <a href="/convert.html" class="nav-link">📄 转换 PDF</a>
+      <a href="/illustrate.html" class="nav-link active">📖 使用与维护</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h1>使用与维护说明</h1>
+      <p>第一次使用，先看「使用说明」了解两台打印机怎么选；负责维护系统，直接看「维护说明」。</p>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="说明类别">
+      <button class="tab active" id="tabBtnUsage" role="tab" aria-selected="true"
+              aria-controls="tab-usage" data-tab="usage">🖨️ 使用说明</button>
+      <button class="tab" id="tabBtnMaintain" role="tab" aria-selected="false"
+              aria-controls="tab-maintain" data-tab="maintain">🔧 维护说明</button>
+    </div>
+
+    <!-- ==================== 使用说明 ==================== -->
+    <section id="tab-usage" role="tabpanel" aria-labelledby="tabBtnUsage">
+      <h2 class="sec-title">四步完成打印</h2>
+      <ol class="steps">
+        <li>
+          <span class="step-no">1</span>
+          <div><b>打开系统</b>
+            <p>电脑浏览器访问打印站网址；手机连接同一 WiFi 后扫码打开。</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-no">2</span>
+          <div><b>上传文件</b>
+            <p>拖拽或点击选择文件，支持图片、PDF、Word、Excel、PPT、文本，可一次传多个。</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-no">3</span>
+          <div><b>预览并设置</b>
+            <p>点「预览」确认内容；在顶部选打印机，在文件卡片上设置份数和黑白/彩色。</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-no">4</span>
+          <div><b>打印并取纸</b>
+            <p>点「打印」，等任务状态变成「已完成」后到打印机取纸。</p>
+          </div>
+        </li>
+      </ol>
+
+      <h2 class="sec-title">两台打印设备</h2>
+      <div class="dev-grid">
+        <article class="dev-card bw">
+          <div class="dev-head">
+            <span class="dev-badge bw">黑白</span>
+            <h3>HP LaserJet 1020</h3>
+          </div>
+          <p class="dev-desc">只能打印黑白，速度相对较快，适合日常文档、作业和草稿。</p>
+          <dl class="spec">
+            <div><dt>颜色</dt><dd>仅黑白</dd></div>
+            <div><dt>速度</dt><dd>较快</dd></div>
+            <div><dt>双面</dt><dd>需手动翻面</dd></div>
+            <div><dt>纸张</dt><dd>A4</dd></div>
+            <div><dt>打印选项</dt><dd><code>HP LaserJet 1020</code></dd></div>
+          </dl>
+          <ul class="dev-points">
+            <li>在页面顶部「打印机」下拉框中选 <b>HP LaserJet 1020</b>。</li>
+            <li>这台机器无法输出彩色，选「彩色」也不会变色。</li>
+          </ul>
+        </article>
+
+        <article class="dev-card color">
+          <div class="dev-head">
+            <span class="dev-badge color">彩色</span>
+            <h3>HP Color LaserJet Pro MFP M176</h3>
+          </div>
+          <p class="dev-desc">黑白、彩色都能打印，速度相对较慢，适合图表、海报和需要颜色的材料。</p>
+          <dl class="spec">
+            <div><dt>颜色</dt><dd>彩色 / 黑白</dd></div>
+            <div><dt>速度</dt><dd>相对较慢</dd></div>
+            <div><dt>双面</dt><dd>需手动翻面</dd></div>
+            <div><dt>纸张</dt><dd>A4</dd></div>
+            <div><dt>打印选项</dt>
+              <dd><code>HP Color LaserJet Pro MFP M176 PCLmS</code><br />
+                  或 <code>Hewlett-Packard HP Color LaserJet Pro MFP M176n</code></dd>
+            </div>
+          </dl>
+          <ul class="dev-points">
+            <li>两个名称指向同一台设备，<b>任选其一</b>即可。</li>
+            <li>如果其中一个名称提交后没有反应，换另一个名称再试。</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="pick">
+        <div class="pick-row"><span>黑白文档、想快一点</span><b>选 HP LaserJet 1020</b></div>
+        <div class="pick-row"><span>需要彩色输出</span><b>选 HP Color LaserJet Pro MFP M176</b></div>
+        <div class="pick-row"><span>需要双面</span><b>任选一台，翻面后到打印站电脑点「继续」</b></div>
+      </div>
+
+      <h2 class="sec-title">使用须知</h2>
+      <div class="notice-grid">
+        <div class="notice">
+          <b>先预览，再打印</b>
+          <p>打印前确认页数、方向和内容无误。页面比纸张大时，缩放默认「适当缩小」，可避免只印出左上角。</p>
+        </div>
+        <div class="notice warn">
+          <b>双面需要手动翻面并点「继续」</b>
+          <p>两台设备都没有自动双面，需要手动完成：第一面打印完后，把纸按正确方向翻面放回纸盘，再到打印站电脑（运行本系统、连接打印机的那台）的打印机窗口点「继续」，才会打印第二面。只翻纸不点「继续」，任务会一直停着。</p>
+        </div>
+        <div class="notice">
+          <b>「等待打印机」不是失败</b>
+          <p>打印机休眠、缺纸或离线时任务会显示等待。先去打印机按一下唤醒键或补纸，任务会继续，不要重复提交。</p>
+        </div>
+        <div class="notice">
+          <b>文件会自动删除</b>
+          <p>上传的文件约 30 分钟后自动清理，打印完请及时取走纸质文件。</p>
+        </div>
+        <div class="notice">
+          <b>格式与大小</b>
+          <p>支持图片、PDF、Word、Excel、PPT、文本，单个文件最大 100 MB。</p>
+        </div>
+        <div class="notice">
+          <b>手机打印</b>
+          <p>手机需连接与打印站相同的 WiFi；预览建议使用 Chrome 或 Edge 浏览器。</p>
+        </div>
+      </div>
+
+      <div class="cancel-box">
+        <b>打错了怎么取消？</b>
+        <p>网页上的「打印任务」只显示进度，<b>没有取消按钮</b>。发现打错后不要反复点打印，请尽快按下面步骤取消：</p>
+        <ol>
+          <li>先在打印机面板按「取消 / 停止」键（如果有），阻止它继续出纸。</li>
+          <li>到打印站电脑（运行本系统、连接打印机的那台）打开打印队列：双击任务栏右下角的打印机图标；
+              或按 <code>Win + R</code> 输入 <code>control printers</code> 回车，再双击对应打印机。</li>
+          <li>在队列里找到刚提交的文档，右键 →「取消」。彩色打印机有两个名称，一个队列里找不到时，检查另一个名称的队列。</li>
+          <li>如果队列里已经没有任务、打印机还在出纸：这些页面已经送进打印机内存，按打印机面板的取消键；
+              仍停不下来时，可先按电源键关闭打印机，在打印站电脑清空队列后再开机。</li>
+        </ol>
+        <p>若自己无法操作打印站电脑，请找负责维护的同学处理；不要直接拔电源线或反复提交任务。</p>
+      </div>
+
+      <h2 class="sec-title">常见问题</h2>
+      <details class="faq">
+        <summary>选了「彩色」，打出来还是黑白？</summary>
+        <p>大概率是选了 HP LaserJet 1020，它只能打印黑白。需要彩色时请把顶部「打印机」切换为 HP Color LaserJet Pro MFP M176 的两个名称之一，并在文件卡片上选择「彩色」。</p>
+      </details>
+      <details class="faq">
+        <summary>双面只打了一面，或停在中间不动？</summary>
+        <p>这两台打印机都没有自动双面。第一面打完后，需要把纸按正确方向翻面放回纸盘，然后到打印站电脑（运行本系统、连接打印机的那台）的打印机队列或驱动提示窗口点「继续」，第二面才会继续打印。只翻纸不点「继续」，任务会一直停着。若没有出现提示，可以改用「更多设置 → 页码范围」分两次打印奇偶页。</p>
+      </details>
+      <details class="faq">
+        <summary>在网页上能取消打印吗？</summary>
+        <p>不能。网页上的「打印任务」只显示进度，没有取消按钮。请按上方「打错了怎么取消」的步骤，到打印站电脑的对应打印机队列里取消；彩色打印机两个名称的队列都要看一下。</p>
+      </details>
+      <details class="faq">
+        <summary>任务一直显示「等待打印机」怎么办？</summary>
+        <p>检查打印机是否休眠、缺纸、卡纸或离线。软件无法自动唤醒休眠的 USB 打印机，请到打印机上按一下唤醒键；处理后任务会自动继续。若长时间没有变化，再重新提交。</p>
+      </details>
+      <details class="faq">
+        <summary>设置多份，但只出了一份？</summary>
+        <p>先看 Windows 打印机队列里是否还有未完成的任务。若队列卡住，清理队列后重新提交，并留意任务状态是否变为「已完成」。</p>
+      </details>
+      <details class="faq">
+        <summary>预览空白，或手机上打不开预览？</summary>
+        <p>优先使用 Chrome 或 Edge；部分手机浏览器会下载 PDF 而不是直接显示，可在新标签页打开预览链接查看。</p>
+      </details>
+      <details class="faq">
+        <summary>打印出来文字特别大，或每页只有左上角一块？</summary>
+        <p>通常是 PDF 页面尺寸远大于 A4。请在「更多设置 → 缩放」中选择「适当缩小」或「铺满页面」，不要用「原始大小」。</p>
+      </details>
+    </section>
+
+    <!-- ==================== 维护说明 ==================== -->
+    <section id="tab-maintain" class="hidden" role="tabpanel" aria-labelledby="tabBtnMaintain">
+      <div class="repo-card">
+        <div>
+          <h2>维护入口：GitHub 仓库</h2>
+          <p>部署、配置和故障排查的完整文档以仓库 README 为准，本页只做速查。</p>
+        </div>
+        <a class="btn btn-primary" href="https://github.com/cyx1c1c/918-print-tool"
+           target="_blank" rel="noopener">打开仓库 ↗</a>
+        <div class="repo-url mono">https://github.com/cyx1c1c/918-print-tool</div>
+      </div>
+
+      <div class="callout">
+        <b>接手前先确认</b>
+        <ul>
+          <li>系统必须运行在<b>连接打印机的那台 Windows 电脑</b>上，不能部署到 Linux / Mac。</li>
+          <li>该电脑需安装 <b>Microsoft Office</b>，Word / Excel / PPT 转 PDF 依赖它。</li>
+          <li>服务要跑在<b>已登录的桌面会话</b>里，不要注册成无人值守服务，否则 Office 转换会失败。</li>
+          <li>打印引擎 <code>vendor/SumatraPDF.exe</code> 必须存在，缺失时无法打印。</li>
+        </ul>
+      </div>
+
+      <h2 class="sec-title">部署与启动</h2>
+      <div class="two-col">
+        <div class="panel">
+          <h3>源码运行</h3>
+          <ol>
+            <li>安装 Python 3.10+（安装时勾选 Add to PATH）。</li>
+            <li>双击 <code>install.bat</code>，自动安装依赖并下载 SumatraPDF。</li>
+            <li>双击 <code>start.bat</code> 启动，窗口会显示访问网址和二维码。</li>
+          </ol>
+        </div>
+        <div class="panel">
+          <h3>打包 exe（推荐长期部署）</h3>
+          <ol>
+            <li><code>pip install -r requirements.txt pyinstaller</code></li>
+            <li><code>python download_sumatra.py</code></li>
+            <li><code>python build.py</code>，产物为 <code>dist\PrintTools.exe</code></li>
+          </ol>
+        </div>
+      </div>
+      <div class="panel" style="margin-top: 12px;">
+        <h3>开机自启</h3>
+        <pre><code>python install_autostart.py --target "C:\路径\PrintTools.exe"
+:: 取消自启
+python install_autostart.py --uninstall</code></pre>
+        <p class="muted">采用「登录后从启动文件夹运行」，保证有桌面会话，Office COM 才能正常转换。</p>
+      </div>
+
+      <h2 class="sec-title">常用配置</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>项目</th><th>位置 / 变量</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>登录开关与账号</td>
+              <td><code>config.ini</code> 的 <code>[auth]</code></td>
+              <td>源码运行时在项目根目录，打包后在 exe 同目录；改动后重启生效。默认 <code>enabled = false</code>。</td>
+            </tr>
+            <tr>
+              <td>重置登录密码</td>
+              <td><code>python -m app.auth</code></td>
+              <td>源码运行时执行，把生成的 <code>pbkdf2_sha256$...</code> 粘贴到 <code>password =</code> 后面。</td>
+            </tr>
+            <tr>
+              <td>服务端口</td>
+              <td><code>PRINT_TOOLS_PORT</code></td>
+              <td>默认 8000；被占用时改成其他端口。</td>
+            </tr>
+            <tr>
+              <td>文件保留时长</td>
+              <td><code>PRINT_TOOLS_RETENTION</code></td>
+              <td>默认 30 分钟，超时自动清理上传文件。</td>
+            </tr>
+            <tr>
+              <td>上传大小上限</td>
+              <td><code>PRINT_TOOLS_MAX_MB</code></td>
+              <td>默认 100 MB。</td>
+            </tr>
+            <tr>
+              <td>打印引擎路径</td>
+              <td><code>SUMATRA_PATH</code></td>
+              <td>默认 <code>vendor/SumatraPDF.exe</code>。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">环境变量优先级高于 <code>config.ini</code>。真实密码不要写进仓库，也不要写在本页。</p>
+
+      <h2 class="sec-title">常见故障速查</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>现象</th><th>排查方向</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Office 文档转换失败</td>
+              <td>确认已安装 Microsoft Office；确认服务运行在已登录的桌面会话中，而不是无人值守服务。</td>
+            </tr>
+            <tr>
+              <td>点打印没有反应</td>
+              <td>检查 <code>vendor/SumatraPDF.exe</code> 是否存在；确认打印机已连接、在线，并能打印测试页。</td>
+            </tr>
+            <tr>
+              <td>多份只出一份</td>
+              <td>程序通过多次调用打印实现份数，先检查 Windows 打印机队列是否卡住，清理后重试。</td>
+            </tr>
+            <tr>
+              <td>双面打印停在第一面</td>
+              <td>属于手动双面流程：把纸翻面放回纸盘后，需在打印站电脑的打印机队列或驱动提示窗口点「继续」；若没有出现提示，改为单面 + 页码范围分两次打印。</td>
+            </tr>
+            <tr>
+              <td>任务取消不掉 / 打印机一直出纸</td>
+              <td>网页端没有取消按钮。到打印站电脑打开对应打印机队列（M176 两个名称都要检查）→ 右键任务「取消」；队列为空仍出纸时，按打印机面板取消键，必要时重启 <b>Print Spooler</b> 服务（会取消所有人的任务）。</td>
+            </tr>
+            <tr>
+              <td>文字超大 / 只印出左上角</td>
+              <td>PDF 页面尺寸大于纸张。让用户把缩放改为「适当缩小」或「铺满页面」。</td>
+            </tr>
+            <tr>
+              <td>一直显示「等待打印机」</td>
+              <td>多为打印机休眠、缺纸、卡纸或离线。软件无法自动唤醒休眠的 USB 打印机；可在打印机设置里调长睡眠时间或关闭自动关机。</td>
+            </tr>
+            <tr>
+              <td>预览空白 / 手机不显示</td>
+              <td>建议使用 Chrome 或 Edge；部分手机浏览器会下载 PDF，可改为在新标签页打开预览链接。</td>
+            </tr>
+            <tr>
+              <td>启动失败 / 端口被占用</td>
+              <td>关闭占用端口的程序，或通过 <code>PRINT_TOOLS_PORT</code> 改用其他端口。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="sec-title">更新与交接清单</h2>
+      <ol class="checklist">
+        <li>从仓库拉取最新代码：<code>git pull</code>。</li>
+        <li>依赖有变化时重新执行 <code>install.bat</code>；使用 exe 部署则重新执行 <code>python build.py</code>。</li>
+        <li>重启服务后，用黑白、彩色、双面（翻面后点「继续」）、多份各打印一张测试页。</li>
+        <li>不要向仓库提交 <code>config.ini</code>、<code>uploads/</code> 和用户上传的文件。</li>
+        <li>设备增减、名称变化或要求变化时，直接修改本页 <code>web/illustrate.html</code> 中的设备卡片。</li>
+        <li>交接时确认：打印站电脑、Office 授权、打印机驱动、SumatraPDF、GitHub 仓库权限。</li>
+      </ol>
+
+      <p class="repo-foot">
+        完整说明与最新版本：<a href="https://github.com/cyx1c1c/918-print-tool"
+        target="_blank" rel="noopener">github.com/cyx1c1c/918-print-tool</a>
+      </p>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    // ===== 标签切换（支持 #usage / #maintain 直链） =====
+    const tabs = document.querySelectorAll(".tab");
+    const panels = {
+      usage: document.getElementById("tab-usage"),
+      maintain: document.getElementById("tab-maintain"),
+    };
+
+    function activate(name) {
+      if (!panels[name]) name = "usage";
+      tabs.forEach((t) => {
+        const on = t.dataset.tab === name;
+        t.classList.toggle("active", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      Object.entries(panels).forEach(([key, el]) => {
+        el.classList.toggle("hidden", key !== name);
+      });
+    }
+
+    tabs.forEach((t) => {
+      t.addEventListener("click", () => {
+        const name = t.dataset.tab;
+        activate(name);
+        history.replaceState(null, "", "#" + name);
+      });
+    });
+    window.addEventListener("hashchange", () => {
+      activate(location.hash === "#maintain" ? "maintain" : "usage");
+    });
+    activate(location.hash === "#maintain" ? "maintain" : "usage");
+
+    // ===== 登出 =====
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try { await fetch("/api/logout", { method: "POST" }); } catch (e) { /* 忽略 */ }
+      location.href = "/login";
+    });
+  </script>
+</body>
+</html>
